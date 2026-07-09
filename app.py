@@ -1,18 +1,10 @@
-"""
-REST API для керування студентами (Flask + CSV)
-
-Кожен студент має поля: id, first_name (ім'я), last_name (прізвище), age (вік).
-Дані зберігаються у файлі students.csv.
-
-Підтримувані запити:
-    GET    /students              -> список усіх студентів
-    GET    /students/<id>         -> студент за ID
-    GET    /students?last_name=.. -> студент(и) за прізвищем
-    POST   /students              -> створити нового студента
-    PUT    /students/<id>         -> повністю оновити студента
-    PATCH  /students/<id>         -> оновити вік студента
-    DELETE /students/<id>         -> видалити студента
-"""
+#GET/students  = список всіх студентів
+#GET/students/<id> = студент за ID
+#GET/students?last_name=.. = студенти за прізвищем
+#POST/students = створити нового студента
+#PUT    /students/<id> = повністю оновити студента
+#PATCH  /students/<id> = оновити вік студента
+#DELETE /students/<id> = видалити студента
 
 import csv
 import os
@@ -23,23 +15,17 @@ app = Flask(__name__)
 CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "students.csv")
 FIELDNAMES = ["id", "first_name", "last_name", "age"]
 
-# Поля, які дозволено передавати у тілі POST / PUT запитів
+# Поля, які дозволено передавати для POST і PUT 
 REQUIRED_FIELDS = {"first_name", "last_name", "age"}
 
-
-# --------------------------------------------------------------------------- #
-# Робота з CSV-файлом
-# --------------------------------------------------------------------------- #
+#csv-файл
 def init_csv():
-    """Створює CSV-файл з заголовком, якщо він ще не існує."""
     if not os.path.exists(CSV_FILE):
         with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
 
-
 def read_students():
-    """Повертає список усіх студентів (список словників)."""
     init_csv()
     with open(CSV_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -52,7 +38,6 @@ def read_students():
 
 
 def write_students(students):
-    """Перезаписує CSV-файл повним списком студентів."""
     with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
@@ -61,7 +46,6 @@ def write_students(students):
 
 
 def get_next_id(students):
-    """Обчислює наступний ID (максимальний існуючий + 1)."""
     if not students:
         return 1
     return max(s["id"] for s in students) + 1
@@ -73,16 +57,11 @@ def find_student_by_id(students, student_id):
             return s
     return None
 
-
-# --------------------------------------------------------------------------- #
 # GET
-# --------------------------------------------------------------------------- #
 @app.route("/students", methods=["GET"])
 def get_students():
-    """
-    Без параметрів      -> список усіх студентів.
-    ?last_name=Прізвище  -> студент(и) з відповідним прізвищем.
-    """
+   # Без параметрів   > список усіх студентів.
+#?last_name=Прізвище > студент з відповідним прізвищем.
     students = read_students()
 
     last_name = request.args.get("last_name")
@@ -96,7 +75,6 @@ def get_students():
 
     return jsonify(students), 200
 
-
 @app.route("/students/<int:student_id>", methods=["GET"])
 def get_student_by_id(student_id):
     students = read_students()
@@ -108,9 +86,7 @@ def get_student_by_id(student_id):
     return jsonify(student), 200
 
 
-# --------------------------------------------------------------------------- #
 # POST
-# --------------------------------------------------------------------------- #
 @app.route("/students", methods=["POST"])
 def create_student():
     body = request.get_json(silent=True)
@@ -120,14 +96,14 @@ def create_student():
 
     body_fields = set(body.keys())
 
-    # неіснуючі поля у тілі запиту
+    # помилка про неправильні поля у тілі запиту
     unknown_fields = body_fields - REQUIRED_FIELDS
     if unknown_fields:
         return jsonify({
             "error": f"Передано неіснуючі поля: {', '.join(unknown_fields)}"
         }), 400
 
-    # відсутні обов'язкові поля
+    # відсутні поля
     missing_fields = REQUIRED_FIELDS - body_fields
     if missing_fields:
         return jsonify({
@@ -137,7 +113,7 @@ def create_student():
     try:
         age = int(body["age"])
     except (ValueError, TypeError):
-        return jsonify({"error": "Поле 'age' повинно бути числом"}), 400
+        return jsonify({"error": "Поле age повинно бути числом, годі дурака валяти"}), 400
 
     students = read_students()
     new_student = {
@@ -151,10 +127,7 @@ def create_student():
 
     return jsonify(new_student), 201
 
-
-# --------------------------------------------------------------------------- #
 # PUT
-# --------------------------------------------------------------------------- #
 @app.route("/students/<int:student_id>", methods=["PUT"])
 def update_student_put(student_id):
     students = read_students()
@@ -194,10 +167,7 @@ def update_student_put(student_id):
     write_students(students)
     return jsonify(student), 200
 
-
-# --------------------------------------------------------------------------- #
 # PATCH
-# --------------------------------------------------------------------------- #
 @app.route("/students/<int:student_id>", methods=["PATCH"])
 def update_student_patch(student_id):
     students = read_students()
@@ -213,7 +183,7 @@ def update_student_patch(student_id):
 
     body_fields = set(body.keys())
 
-    # PATCH дозволяє оновлювати лише поле "age"
+    # PATCH оновлює лише поле age
     unknown_fields = body_fields - {"age"}
     if unknown_fields:
         return jsonify({
@@ -226,16 +196,13 @@ def update_student_patch(student_id):
     try:
         age = int(body["age"])
     except (ValueError, TypeError):
-        return jsonify({"error": "Поле 'age' повинно бути числом"}), 400
+        return jsonify({"error": "Поле age повинно бути числом"}), 400
 
     student["age"] = age
     write_students(students)
     return jsonify(student), 200
 
-
-# --------------------------------------------------------------------------- #
 # DELETE
-# --------------------------------------------------------------------------- #
 @app.route("/students/<int:student_id>", methods=["DELETE"])
 def delete_student(student_id):
     students = read_students()
